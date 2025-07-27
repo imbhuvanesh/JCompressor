@@ -1,0 +1,89 @@
+import javax.swing.*;
+import java.awt.datatransfer.*;
+import java.awt.dnd.*;
+import java.io.*;
+import java.util.List;
+import java.util.zip.*;
+
+public class ZipUtilityGUI extends JFrame {
+
+    private JLabel dropLabel;
+
+    public ZipUtilityGUI() {
+        setTitle("Java ZIP Utility - Drag and Drop");
+        setSize(400, 200);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        dropLabel = new JLabel("Drag and drop files here to compress", SwingConstants.CENTER);
+        dropLabel.setBorder(BorderFactory.createDashedBorder(null));
+        add(dropLabel);
+
+        new DropTarget(dropLabel, new FileDropTargetListener());
+
+        setLocationRelativeTo(null); // Center the window
+        setVisible(true);
+    }
+
+    private class FileDropTargetListener extends DropTargetAdapter {
+        @Override
+        public void drop(DropTargetDropEvent event) {
+            try {
+                event.acceptDrop(DnDConstants.ACTION_COPY);
+                Transferable transferable = event.getTransferable();
+                List<File> droppedFiles = (List<File>) transferable.getTransferData(DataFlavor.javaFileListFlavor);
+
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setDialogTitle("Save ZIP As");
+                fileChooser.setSelectedFile(new File("output.zip"));
+
+                int result = fileChooser.showSaveDialog(null);
+                if (result == JFileChooser.APPROVE_OPTION) {
+                    File zipFile = fileChooser.getSelectedFile();
+                    compressFiles(droppedFiles, zipFile);
+                    JOptionPane.showMessageDialog(null,
+                            "Files compressed successfully to:\n" + zipFile.getAbsolutePath());
+                }
+
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void compressFiles(List<File> files, File outputZip) throws IOException {
+        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(outputZip))) {
+            for (File file : files) {
+                addToZip(file, file.getName(), zos);
+            }
+        }
+    }
+
+    private void addToZip(File file, String entryName, ZipOutputStream zos) throws IOException {
+        if (file.isDirectory()) {
+            File[] subFiles = file.listFiles();
+            if (subFiles != null) {
+                for (File subFile : subFiles) {
+                    addToZip(subFile, entryName + "/" + subFile.getName(), zos);
+                }
+            }
+        } else {
+            try (FileInputStream fis = new FileInputStream(file)) {
+                ZipEntry zipEntry = new ZipEntry(entryName);
+                zos.putNextEntry(zipEntry);
+
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = fis.read(buffer)) > 0) {
+                    zos.write(buffer, 0, length);
+                }
+
+                zos.closeEntry();
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(ZipUtilityGUI::new);
+    }
+}
