@@ -1,4 +1,4 @@
-#JCompressor
+##JCompressor
 
 A simple Java project for compressing files and making them easier to store and manage.
 
